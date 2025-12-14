@@ -1,42 +1,39 @@
 from flask import Flask, request, jsonify
 import os
-import openai
+from mistralai.client import MistralClient
+from mistralai.models.chat_completion import ChatMessage
 
 app = Flask(__name__)
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Load API key from Railway
+MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY")
+client = MistralClient(api_key=MISTRAL_API_KEY)
 
 @app.route("/", methods=["GET"])
 def home():
-    return "ZEAL.AI is alive."
+    return "ZEAL.AI backend is alive"
 
 @app.route("/chat", methods=["POST"])
 def chat():
-    data = request.json
-    message = data.get("message", "")
+    data = request.get_json()
+    user_message = data.get("message", "")
 
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are ZEAL.AI, a Bible-based assistant that gives wise, gentle, scripture-aligned responses."
-                },
-                {"role": "user", "content": message}
-            ]
-        )
+    messages = [
+        ChatMessage(role="system", content="You are ZEAL.AI, a Bible-based assistant."),
+        ChatMessage(role="user", content=user_message)
+    ]
 
-        reply = response.choices[0].message.content
+    response = client.chat(
+        model="mistral-small",
+        messages=messages
+    )
 
-        return jsonify({
-            "reply": reply,
-            "name": "ZEAL.AI"
-        })
+    reply = response.choices[0].message.content
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
+    return jsonify({
+        "reply": reply,
+        "assistant": "ZEAL.AI"
+    })
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+    app.run(host="0.0.0.0", port=8080)
